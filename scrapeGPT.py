@@ -7,9 +7,7 @@ from io import BytesIO
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-import streamlit as st
 from datetime import datetime
-import logging
 from aiogram import Bot, Dispatcher, executor, types
 
 # Path to shared configuration file (must match the Gradio app's CONFIG_PATH)
@@ -34,9 +32,8 @@ def get_proxy():
     print("Starting proxy ...")
     proxy_url = FreeProxy(country_id=['US','CA','FR','NZ','SE','PT','CZ','NL','ES','SK','UK','PL','IT','DE','AT','JP'],https=True,rand=True,timeout=3).get()
     proxy_obj = {
-        "server": proxy_url,
-        "username": "",
-        "password": ""
+        "http": proxy_url,
+        "https": proxy_url,
     }
 
     print(f"Proxy generated: {proxy_url}")
@@ -124,6 +121,8 @@ def get_robots_file(url,proxy):
 def parse_robots(content):
     # This function assumes simple rules without wildcards, comments, etc.
     # For a full parser, consider using a library like robotparser.
+    if not content:
+        return []
     disallowed = []
     for line in content.splitlines():
         if line.startswith('Disallow:'):
@@ -268,49 +267,49 @@ def analyze_website(start_url):
     
     return all_scraped_texts
 
-# Replace with your actual bot token, or set the TELEGRAM_BOT_TOKEN environment variable
-API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-if not API_TOKEN:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN environment variable is required to run the Telegram bot.")
-
-# Initialize bot and dispatcher
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
-
-# State storage
-state_storage = {}
-
-@dp.message_handler(commands=['start'])
-async def cmd_start(message: types.Message):
-    allowed = load_allowed_user_ids()
-    if allowed and message.from_user.id not in allowed:
-        await message.reply("Sorry, you are not authorized to use this bot.")
-        return
-    # Each user gets their own isolated state entry keyed by chat_id
-    state_storage[message.chat.id] = {'state': 'waiting_for_link'}
-    await message.reply('Please provide a website URL.')
-
-@dp.message_handler(content_types=types.ContentType.TEXT)
-async def process_message(message: types.Message):
-    allowed = load_allowed_user_ids()
-    if allowed and message.from_user.id not in allowed:
-        await message.reply("Sorry, you are not authorized to use this bot.")
-        return
-    chat_id = message.chat.id
-    state = state_storage.get(chat_id, {}).get('state')
-    
-    if state == 'waiting_for_link':
-        website_text = analyze_website(message.text)
-        state_storage[chat_id]['website_text'] = website_text
-        state_storage[chat_id]['state'] = 'ready_to_chat'
-        await message.reply('Link accepted and analyzed. You can now ask questions.')
-        
-    elif state == 'ready_to_chat':
-        context = get_context(message.text, state_storage[chat_id]['website_text'])
-        response = generate_answer_local(message.text, context)
-        await message.reply(response)
-
 if __name__ == '__main__':
+    # Replace with your actual bot token, or set the TELEGRAM_BOT_TOKEN environment variable
+    API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not API_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN environment variable is required to run the Telegram bot.")
+
+    # Initialize bot and dispatcher
+    bot = Bot(token=API_TOKEN)
+    dp = Dispatcher(bot)
+
+    # State storage
+    state_storage = {}
+
+    @dp.message_handler(commands=['start'])
+    async def cmd_start(message: types.Message):
+        allowed = load_allowed_user_ids()
+        if allowed and message.from_user.id not in allowed:
+            await message.reply("Sorry, you are not authorized to use this bot.")
+            return
+        # Each user gets their own isolated state entry keyed by chat_id
+        state_storage[message.chat.id] = {'state': 'waiting_for_link'}
+        await message.reply('Please provide a website URL.')
+
+    @dp.message_handler(content_types=types.ContentType.TEXT)
+    async def process_message(message: types.Message):
+        allowed = load_allowed_user_ids()
+        if allowed and message.from_user.id not in allowed:
+            await message.reply("Sorry, you are not authorized to use this bot.")
+            return
+        chat_id = message.chat.id
+        state = state_storage.get(chat_id, {}).get('state')
+        
+        if state == 'waiting_for_link':
+            website_text = analyze_website(message.text)
+            state_storage[chat_id]['website_text'] = website_text
+            state_storage[chat_id]['state'] = 'ready_to_chat'
+            await message.reply('Link accepted and analyzed. You can now ask questions.')
+            
+        elif state == 'ready_to_chat':
+            context = get_context(message.text, state_storage[chat_id]['website_text'])
+            response = generate_answer_local(message.text, context)
+            await message.reply(response)
+
     executor.start_polling(dp, skip_updates=True)
 
 
