@@ -19,6 +19,10 @@ services:
       # Leave empty (default) to disable speech transcription or to use a locally-installed
       # openai-whisper package.
       - WHISPERLIVE_HOST=${WHISPERLIVE_HOST:-}
+      # NVIDIA GPU support: default to 'all' to expose all GPUs and driver capabilities.
+      # Set to empty in your .env to disable GPU access (e.g. when no NVIDIA GPU is present).
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-all}
       # SearXNG URL for web search/scraping. Set to http://searxng:8080 when using the
       # bundled searxng service below. Leave empty to fall back to direct proxy scraping.
       - SEARXNG_HOST=${SEARXNG_HOST:-http://searxng:8080}
