@@ -21,6 +21,11 @@ from langchain_community.embeddings import GPT4AllEmbeddings, HuggingFaceEmbeddi
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen:0.5b")
 OLLAMA_VISION_MODEL = os.environ.get("OLLAMA_VISION_MODEL", "llava")
+# Optional: URL of a running WhisperLive service (e.g. http://whisperlive:9090).
+# When set, audio transcription is delegated to that service instead of using a
+# locally-installed openai-whisper model.  Leave empty to use local whisper
+# (if installed) or to disable speech transcription entirely.
+WHISPERLIVE_HOST = os.environ.get("WHISPERLIVE_HOST", "")
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant that answers questions based only on the provided context."
 
 # Path to shared configuration file (persistent across restarts)
@@ -29,7 +34,8 @@ CONFIG_PATH = os.environ.get("CONFIG_PATH", "config.json")
 # Minimum number of words in a Whisper transcript to classify audio as speech
 _SPEECH_WORD_THRESHOLD = 3
 
-# Whisper model – loaded once on first audio request
+# Local Whisper model – loaded once on first audio request (only used when
+# WHISPERLIVE_HOST is not configured and openai-whisper is installed)
 _whisper_model = None
 
 
@@ -282,26 +288,75 @@ def analyze_image_with_ollama(image_path, question=""):
     )
     return response["message"]["content"]
 
+def _transcribe_with_whisperlive(audio_path):
+    """Transcribe *audio_path* using the external WhisperLive service.
+
+    The service must expose an OpenAI-compatible REST endpoint at
+    ``WHISPERLIVE_HOST/v1/audio/transcriptions``.  This is satisfied by
+    ``ghcr.io/collabora/whisperlive-gpu:latest`` as well as other
+    compatible self-hosted Whisper servers.
+
+    Returns the transcript string, or raises on failure.
+    """
+    url = f"{WHISPERLIVE_HOST.rstrip('/')}/v1/audio/transcriptions"
+    with open(audio_path, "rb") as fh:
+        response = requests.post(url, files={"file": fh}, data={"model": "whisper-1"})
+    if not response.ok:
+        raise RuntimeError(
+            f"WhisperLive service at {WHISPERLIVE_HOST} returned HTTP {response.status_code}: {response.text[:200]}"
+        )
+    return response.json().get("text", "").strip()
+
+
+def _transcribe_with_local_whisper(audio_path):
+    """Transcribe *audio_path* using the locally installed openai-whisper package.
+
+    Returns the transcript string, or raises ImportError if the package is
+    not installed.
+    """
+    global _whisper_model
+    import whisper  # optional dependency
+    if _whisper_model is None:
+        _whisper_model = whisper.load_model("base")
+    result = _whisper_model.transcribe(audio_path)
+    return result.get("text", "").strip()
+
+
 def analyze_audio_file(audio_path):
     """Transcribe speech **or** analyse music depending on the audio content.
 
-    Speech transcription uses OpenAI Whisper (``openai-whisper`` package).
+    Speech transcription is attempted first:
+      - If ``WHISPERLIVE_HOST`` is set, the external WhisperLive service is
+        used (``ghcr.io/collabora/whisperlive-gpu:latest`` or compatible).
+      - Otherwise the locally-installed ``openai-whisper`` package is used as
+        a fallback (if available).
+      - If neither is configured the transcription step is skipped and the
+        audio is analysed as music.
+
     Music analysis uses librosa to extract BPM, estimated key, and spectral
     centroid.
-
-    Required packages (already in requirements.txt):
-        openai-whisper, librosa, soundfile
     """
-    global _whisper_model
     import librosa
     import numpy as np
 
     # ── Speech transcription ──────────────────────────────────────────────
-    import whisper
-    if _whisper_model is None:
-        _whisper_model = whisper.load_model("base")
-    result = _whisper_model.transcribe(audio_path)
-    transcript = result.get("text", "").strip()
+    transcript = ""
+    if WHISPERLIVE_HOST:
+        try:
+            transcript = _transcribe_with_whisperlive(audio_path)
+        except Exception as exc:
+            logging.warning(
+                f"WhisperLive transcription failed at {WHISPERLIVE_HOST}: {exc}. "
+                "Audio will be analysed as music instead."
+            )
+    else:
+        try:
+            transcript = _transcribe_with_local_whisper(audio_path)
+        except ImportError:
+            logging.info(
+                "openai-whisper is not installed and WHISPERLIVE_HOST is not set; "
+                "speech transcription is unavailable. Audio will be analysed as music."
+            )
 
     # If we got a meaningful transcript treat it as speech
     if transcript and len(transcript.split()) > _SPEECH_WORD_THRESHOLD:

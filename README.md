@@ -12,7 +12,7 @@ ScrapeGPT is a Gradio web app (and optional Telegram bot) that scrapes websites 
 - **Flexible Chat**: A single unified interface that automatically detects the type of input and routes to the correct handler:
   - **URL in prompt** → scrapes the page(s) and answers using retrieved content
   - **Image upload** → analyses the image using a multimodal Ollama model (e.g. `llava`)
-  - **Audio upload** → transcribes speech (OpenAI Whisper) *or*, if no clear speech is found, analyses the audio as music (BPM, estimated key, spectral centroid via librosa)
+  - **Audio upload** → transcribes speech (via [WhisperLive](https://github.com/collabora/WhisperLive) when configured) *or*, if no clear speech is found, analyses the audio as music (BPM, estimated key, spectral centroid via librosa)
   - **Plain text** → answers directly with the configured LLM
 - **Web Scraping**: Automatically scrapes text from provided URLs, including PDF files.
 - **Context Retrieval**: Utilises embeddings and retrieval models to extract relevant context from scraped content.
@@ -27,7 +27,7 @@ ScrapeGPT is a Gradio web app (and optional Telegram bot) that scrapes websites 
 | Feature | Required model / package | How to enable |
 |---|---|---|
 | Image analysis | A multimodal Ollama model, e.g. `llava` | `ollama pull llava` then set `OLLAMA_VISION_MODEL=llava` |
-| Speech transcription | OpenAI Whisper (`openai-whisper` Python package) | Already in `requirements.txt`; Whisper downloads its weights on first use |
+| Speech transcription | [WhisperLive](https://github.com/collabora/WhisperLive) container (`ghcr.io/collabora/whisperlive-gpu:latest`) | Set `WHISPERLIVE_HOST=http://whisperlive:9090` (see below) |
 | Music analysis | librosa + soundfile Python packages | Already in `requirements.txt`; no extra setup required |
 
 ---
@@ -60,12 +60,27 @@ Key variables in `.env`:
 | `OLLAMA_VISION_MODEL` | `llava` | Ollama vision model for image analysis (pull first) |
 | `GRADIO_PORT` | `7860` | Host port for the Gradio web UI |
 | `TELEGRAM_BOT_TOKEN` | *(empty)* | Telegram token (bot mode only) |
+| `WHISPERLIVE_HOST` | *(empty)* | URL of the WhisperLive service for speech transcription (optional) |
 
 #### 3. Start the stack
 ```bash
 docker compose up -d
 ```
 This starts both **scrapeGPT** and **Ollama** containers.
+
+#### Optional: Enable GPU speech transcription with WhisperLive
+
+To enable speech transcription, start the WhisperLive service alongside the stack:
+
+```bash
+# In your .env:
+WHISPERLIVE_HOST=http://whisperlive:9090
+
+# Then start all services including the whisper profile:
+docker compose --profile whisper up -d
+```
+
+The WhisperLive service uses `ghcr.io/collabora/whisperlive-gpu:latest` and requires an NVIDIA GPU with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed.  If speech transcription is not needed, leave `WHISPERLIVE_HOST` empty — audio uploads will still be analysed for music features (BPM, key, etc.).
 
 #### 4. Pull the Ollama model
 ```bash
@@ -136,6 +151,7 @@ ScrapeGPT includes an Unraid Docker template for easy container configuration. T
      | **Ollama Host** | `http://ollama:11434` | Use container name if on same Docker network; otherwise use your server IP, e.g. `http://192.168.1.100:11434` |
      | **Ollama Model** | `qwen:0.5b` | Must be pulled into Ollama first |
      | **Ollama Vision Model** | `llava` | For image analysis; must be pulled first: `ollama pull llava` |
+     | **WhisperLive Host** | `http://whisperlive:9090` | (Optional) For speech transcription; run `ghcr.io/collabora/whisperlive-gpu:latest` on the same network. Leave empty to disable. |
      | **WebUI Port** | `7860` | Host port to access Gradio |
      | **App Data** | `/mnt/user/appdata/scrapegpt` | Stores `db.json` |
      | **Qdrant Vector Store** | `/mnt/user/appdata/scrapegpt/qdrant` | Stores embedding vectors |
