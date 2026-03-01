@@ -12,7 +12,7 @@
   <Overview>ScrapeGoat is a web app that scrapes websites and answers questions about them using a local LLM via Ollama. Provides a Gradio web UI accessible on the configured port. The image is published to GitHub Container Registry and will be pulled automatically when you start the container.</Overview>
   <Category>Tools: MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:7860]/</WebUI>
-  <Icon>https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/scrapegoat.png</Icon>
+  <Icon>https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/unraid/ScrapeGoat.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
