@@ -108,6 +108,14 @@ The WhisperLive service uses `ghcr.io/collabora/whisperlive-gpu:latest` and requ
 docker exec -it ollama ollama pull qwen:0.5b
 ```
 
+**Optional — image analysis (llava):**  
+To enable image analysis, pull a multimodal vision model and set `OLLAMA_VISION_MODEL` in your `.env`:
+```bash
+docker exec -it ollama ollama pull llava
+# In your .env:
+OLLAMA_VISION_MODEL=llava
+```
+
 #### 5. Open the web UI
 Navigate to **http://localhost:7860** in your browser.
 
@@ -207,6 +215,12 @@ pip install -r requirements.txt
 ```bash
 ollama pull qwen:0.5b
 ```
+   **Optional — image analysis (llava):**  
+   To enable image analysis, pull a multimodal vision model and set the environment variable:
+   ```bash
+   ollama pull llava
+   export OLLAMA_VISION_MODEL=llava
+   ```
 4. Run the Gradio app:
 ```bash
 python ScrapeGoat_gradio_app.py
