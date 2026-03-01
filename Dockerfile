@@ -10,9 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Ensure pip build tools are up to date (required by openai-whisper's pyproject.toml build)
-# --no-build-isolation reuses these globally so isolated per-package envs also benefit
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel setuptools-scm
+# Ensure pip build tools are up to date.
+# NOTE: do NOT upgrade setuptools here -- setuptools>=80 removes pkg_resources,
+# which openai-whisper's setup.py requires. The base image ships setuptools<80
+# (which has pkg_resources and satisfies openai-whisper's >=65 constraint).
+# setuptools_scm is needed by openai-whisper's build backend.
+# --no-build-isolation (below) reuses this global env so pip never spins up
+# an isolated build env that would reinstall a newer setuptools.
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools-scm
 
 # Copy and install Python dependencies first (layer caching)
 COPY requirements.txt .
