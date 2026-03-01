@@ -2,6 +2,7 @@ import gradio as gr
 import os
 import time
 import base64
+import logging
 import requests, json, re, ollama
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -68,14 +69,16 @@ current_settings = {
     "allowed_telegram_user_ids": _allowed_ids,
 }
 
+# Shared state for the URL Input / QnA tabs
+shared_result = None
+
 # Proxy init
 def get_proxy():
     print("Starting proxy ...")
     proxy_url = FreeProxy(country_id=['US','CA','FR','NZ','SE','PT','CZ','NL','ES','SK','UK','PL','IT','DE','AT','JP'],https=True,rand=True,timeout=3).get()
     proxy_obj = {
-        "server": proxy_url,
-        "username": "",
-        "password": ""
+        "http": proxy_url,
+        "https": proxy_url,
     }
 
     print(f"Proxy generated: {proxy_url}")
@@ -125,6 +128,8 @@ def get_robots_file(url,proxy):
 def parse_robots(content):
     # This function assumes simple rules without wildcards, comments, etc.
     # For a full parser, consider using a library like robotparser.
+    if not content:
+        return []
     disallowed = []
     for line in content.splitlines():
         if line.startswith('Disallow:'):
