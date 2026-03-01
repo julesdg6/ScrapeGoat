@@ -12,7 +12,6 @@
   <Overview>ScrapeGPT is a web app that scrapes websites and answers questions about them using a local LLM via Ollama. Provides a Gradio web UI accessible on the configured port. NOTE: You must build the Docker image locally first by running 'docker build -t scrapegpt:latest .' in the cloned repository directory before installing this container in Unraid.</Overview>
   <Category>Tools: MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:7860]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/unraid/scrapeGPT.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/unraid/icon.png</Icon>
   <ExtraParams/>
   <PostArgs/>
