@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>ScrapeGPT</Name>
-  <Repository>scrapegpt:latest</Repository>
-  <Registry>https://hub.docker.com/</Registry>
+  <Repository>ghcr.io/julesdg6/scrapegpt:latest</Repository>
+  <Registry>https://ghcr.io/</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/julesdg6/scrapeGPT/issues</Support>
   <Project>https://github.com/julesdg6/scrapeGPT</Project>
-  <Overview>ScrapeGPT is a web app that scrapes websites and answers questions about them using a local LLM via Ollama. Provides a Gradio web UI accessible on the configured port. NOTE: You must build the Docker image locally first by running 'docker build -t scrapegpt:latest .' in the cloned repository directory before installing this container in Unraid.</Overview>
+  <Overview>ScrapeGPT is a web app that scrapes websites and answers questions about them using a local LLM via Ollama. Provides a Gradio web UI accessible on the configured port. The image is published to GitHub Container Registry and will be pulled automatically when you start the container.</Overview>
   <Category>Tools: MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:7860]/</WebUI>
   <Icon>https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/unraid/icon.png</Icon>

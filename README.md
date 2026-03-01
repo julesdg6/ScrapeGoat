@@ -77,12 +77,11 @@ Navigate to **http://localhost:7860** in your browser.
 
 ---
 
-#### Manual `docker build` (without Compose)
+#### Manual `docker run` (pre-built image)
+
+The image is published to GitHub Container Registry and can be pulled directly:
 
 ```bash
-# Build the image
-docker build -t scrapegpt:latest .
-
 # Run with an existing Ollama container on the same network
 docker run -d \
   --name scrapegpt \
@@ -92,7 +91,7 @@ docker run -d \
   -v scrapegpt_data:/data \
   -v scrapegpt_qdrant:/app/tmp/local_qdrant \
   --network <your-docker-network> \
-  scrapegpt:latest
+  ghcr.io/julesdg6/scrapegpt:latest
 ```
 
 > **Connecting to Ollama in another container:**  
@@ -100,20 +99,17 @@ docker run -d \
 > ```bash
 > docker network create scrapegpt-net
 > docker run -d --name ollama --network scrapegpt-net -p 11434:11434 -v ollama_data:/root/.ollama ollama/ollama
-> docker run -d --name scrapegpt --network scrapegpt-net -p 7860:7860 -e OLLAMA_HOST=http://ollama:11434 scrapegpt:latest
+> docker run -d --name scrapegpt --network scrapegpt-net -p 7860:7860 -e OLLAMA_HOST=http://ollama:11434 ghcr.io/julesdg6/scrapegpt:latest
 > ```
 
 ---
 
 ### Option B — Unraid Install
 
-ScrapeGPT includes an Unraid Docker template for easy container configuration.
-
-> **Important:** ScrapeGPT is not yet published to Docker Hub, so you must **build the Docker image locally on your Unraid server** before adding the container. The steps below cover this.
+ScrapeGPT includes an Unraid Docker template for easy container configuration. The Docker image is published to GitHub Container Registry and will be pulled automatically — no manual build step required.
 
 #### Prerequisites
-- Unraid with SSH access (or access to the Unraid terminal via the web UI).
-- [Docker](https://docs.docker.com/get-docker/) available on Unraid (it is by default).
+- Unraid with Docker enabled.
 - An **Ollama** container already running on your Unraid server (install `ollama/ollama` from Community Applications or via the Docker tab).
 
 #### Step-by-step
@@ -125,18 +121,8 @@ ScrapeGPT includes an Unraid Docker template for easy container configuration.
      docker exec -it ollama ollama pull qwen:0.5b
      ```
 
-2. **Build the ScrapeGPT Docker image on your Unraid server**:
-   - Open the Unraid terminal (Tools → Terminal) or SSH into your server.
-   - Clone the repository and build the image:
-     ```bash
-     git clone https://github.com/julesdg6/scrapeGPT.git /mnt/user/appdata/scrapegpt-src
-     cd /mnt/user/appdata/scrapegpt-src
-     docker build -t scrapegpt:latest .
-     ```
-   - This only needs to be done once (or again after updates).
-
-3. **Add the ScrapeGPT container using the template**:
-   - In the same Unraid terminal, download the template to Unraid's user templates folder:
+2. **Add the ScrapeGPT container using the template**:
+   - Open the Unraid terminal (Tools → Terminal) or SSH into your server and download the template:
      ```bash
      wget -O /boot/config/plugins/dockerMan/templates-user/scrapeGPT.xml \
        https://raw.githubusercontent.com/julesdg6/scrapeGPT/main/unraid/scrapeGPT.xml
@@ -154,9 +140,9 @@ ScrapeGPT includes an Unraid Docker template for easy container configuration.
      | **App Data** | `/mnt/user/appdata/scrapegpt` | Stores `db.json` |
      | **Qdrant Vector Store** | `/mnt/user/appdata/scrapegpt/qdrant` | Stores embedding vectors |
 
-   - Click **Apply** to start the container.
+   - Click **Apply** to start the container. Unraid will pull `ghcr.io/julesdg6/scrapegpt:latest` automatically.
 
-4. **Access the UI**:  
+3. **Access the UI**:  
    Open `http://<unraid-ip>:7860` in your browser.
 
 > **Tip:** Make sure both `scrapegpt` and `ollama` containers are on the same custom Docker network (e.g., `br0` bridge or a custom bridge) so that `http://ollama:11434` resolves correctly. You can set the network for each container in the Docker settings under *Advanced View*.
