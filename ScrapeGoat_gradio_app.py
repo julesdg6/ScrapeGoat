@@ -9,7 +9,6 @@ from urllib.parse import urljoin, urlparse
 from fp.fp import FreeProxy
 from PyPDF2 import PdfReader
 from io import BytesIO
-from PIL import Image
 from langchain_community.vectorstores import Qdrant
 from langchain_community.chat_models import ChatOllama
 from langchain.prompts import ChatPromptTemplate
@@ -123,6 +122,13 @@ def generate_image_a1111(prompt: str, negative_prompt: str = ""):
 
     try:
         img_bytes = base64.b64decode(img_b64)
+        try:
+            from PIL import Image  # Pillow is optional unless using image generation
+        except Exception:
+            return (
+                None,
+                "A1111 returned an image, but Pillow is not installed. Install it with `pip install Pillow`.",
+            )
         img = Image.open(BytesIO(img_bytes)).convert("RGB")
     except Exception as exc:
         return None, f"Could not decode A1111 image: {exc}"
@@ -156,8 +162,13 @@ try:
     _allowed_ids = [int(uid) for uid in _raw_ids]
 except (ValueError, TypeError):
     _allowed_ids = []
+_system_prompt = _cfg.get("system_prompt")
+if not isinstance(_system_prompt, str):
+    _system_prompt = DEFAULT_SYSTEM_PROMPT
+else:
+    _system_prompt = _system_prompt.strip() or DEFAULT_SYSTEM_PROMPT
 current_settings = {
-    "system_prompt": (_cfg.get("system_prompt") or "").strip() or DEFAULT_SYSTEM_PROMPT,
+    "system_prompt": _system_prompt,
     # List of permitted Telegram user IDs (integers); empty = no restriction
     "allowed_telegram_user_ids": _allowed_ids,
 }
