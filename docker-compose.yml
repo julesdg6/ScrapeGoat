@@ -19,6 +19,10 @@ services:
       # Leave empty (default) to disable speech transcription or to use a locally-installed
       # openai-whisper package.
       - WHISPERLIVE_HOST=${WHISPERLIVE_HOST:-}
+      # NVIDIA GPU support: default to 'all' to expose all GPUs and driver capabilities.
+      # Set to empty in your .env to disable GPU access (e.g. when no NVIDIA GPU is present).
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-all}
     volumes:
       - scrapegoat_data:/data
       - scrapegoat_qdrant:/app/tmp/local_qdrant
@@ -32,18 +36,8 @@ services:
     container_name: ollama
     ports:
       - "11434:11434"
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
