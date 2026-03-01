@@ -68,6 +68,9 @@ def _get_a1111_base_url() -> str:
     if not re.match(r"^https?://", host):
         host = f"http://{host}"
     parsed = urlparse(host)
+    if not parsed.hostname:
+        logging.warning(f"Invalid A1111_HOST={A1111_HOST!r}; disabling A1111.")
+        return ""
     if parsed.port is None and A1111_PORT:
         return f"{parsed.scheme}://{parsed.hostname}:{A1111_PORT}"
     return host

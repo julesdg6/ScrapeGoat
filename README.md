@@ -76,13 +76,13 @@ Key variables in `.env`:
 | `OLLAMA_HOST` | `http://ollama:11434` | URL of the Ollama API |
 | `OLLAMA_MODEL` | `qwen:0.5b` | Ollama model name |
 | `OLLAMA_VISION_MODEL` | `llava` | Ollama vision model for image analysis (pull first) |
-| `GRADIO_PORT` | `7860` | Host port for the Gradio web UI |
+| `GRADIO_PORT` | `7860` | Host port for the Gradio web UI (use a different port than `A1111_PORT` when running both locally) |
 | `TELEGRAM_BOT_TOKEN` | *(empty)* | Telegram token (bot mode only) |
 | `WHISPERLIVE_HOST` | *(empty)* | URL of the WhisperLive service for speech transcription (optional) |
 | `SEARXNG_HOST` | `http://searxng:8080` | URL of the SearXNG search backend (recommended; leave empty to use legacy proxy scraping) |
 | `SEARXNG_PORT` | `8080` | Host port for the bundled SearXNG web UI |
 | `A1111_HOST` | *(empty)* | Automatic1111 base URL (host) for image generation (enables Image Generation tab) |
-| `A1111_PORT` | `7860` | Automatic1111 API/web UI port |
+| `A1111_PORT` | `7861` | Automatic1111 API/web UI port (change if it conflicts with `GRADIO_PORT`) |
 | `A1111_MODEL` | *(empty)* | Optional checkpoint name (leave empty to use currently loaded model) |
 | `A1111_WIDTH` | `256` | Generated image width |
 | `A1111_HEIGHT` | `256` | Generated image height |
@@ -112,12 +112,46 @@ The WhisperLive service uses `ghcr.io/collabora/whisperlive-gpu:latest` and requ
 
 #### Optional: Enable image generation with Automatic1111 (A1111)
 
-Start your Automatic1111 (stable-diffusion-webui) container with the `--api` flag enabled, then set:
+Start your Automatic1111 (stable-diffusion-webui) container with the `--api` flag enabled, on the same Docker network as ScrapeGoat so `A1111_HOST` resolves.
+
+**Minimal docker-compose service:**
+```yaml
+services:
+  a1111:
+    image: automatic1111/stable-diffusion-webui
+    container_name: a1111
+    command: ["--api"]
+    ports:
+      - "7861:7860"
+    volumes:
+      - ./a1111_models:/models
+      - ./a1111_outputs:/outputs
+    networks:
+      - scrapegoat-net
+
+networks:
+  scrapegoat-net:
+    name: scrapegoat-net
+```
+
+**Equivalent docker run:**
+```bash
+docker network create scrapegoat-net
+docker run -d \
+  --name a1111 \
+  --network scrapegoat-net \
+  -p 7861:7860 \
+  -v "$PWD/a1111_models:/models" \
+  -v "$PWD/a1111_outputs:/outputs" \
+  automatic1111/stable-diffusion-webui --api
+```
+
+Then set:
 
 ```bash
 # In your .env:
 A1111_HOST=http://a1111
-A1111_PORT=7860
+A1111_PORT=7861
 # Optional:
 A1111_MODEL=
 A1111_WIDTH=256
@@ -190,6 +224,19 @@ ScrapeGoat includes an Unraid Docker template for easy container configuration. 
 2. **Install SearXNG** (recommended — provides the web scraping backend):
    - In Unraid, go to **Apps** → search for `SearXNG` → install `searxng/searxng`.
    - No extra configuration is required for basic use; ScrapeGoat's default `SEARXNG_HOST=http://searxng:8080` will connect to it automatically once both containers are on the same Docker network.
+
+#### Optional — Automatic1111 (Stable Diffusion WebUI)
+
+If you want the Image Generation tab, install Automatic1111 on Unraid and configure the A1111 settings in the ScrapeGoat template.
+
+- In Unraid, go to **Apps** → search for **Automatic1111** (Stable Diffusion WebUI) → install the Docker template.
+- **Container settings to configure:**
+  - Map a host port to the container port that matches **A1111 Port** (e.g., 7860).
+  - Set **A1111 Host** to the container hostname or Unraid IP (e.g., `http://a1111` on the same network, or `http://192.168.1.100`).
+  - Expose model/data volumes so the WebUI can access your checkpoints and outputs.
+  - Enable GPU passthrough if you want hardware acceleration.
+- **Important:** Launch the WebUI with the `--api` flag so the **A1111 Host** and **A1111 Port** keys work with the app.
+- In the ScrapeGoat template, configure **A1111 Host**, **A1111 Port**, **A1111 Default Model**, and **A1111 Resolution** to match your WebUI setup.
 
 3. **Add the ScrapeGoat container using the template**:
    - Open the Unraid terminal (Tools → Terminal) or SSH into your server and download the template:

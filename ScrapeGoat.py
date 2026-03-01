@@ -77,6 +77,8 @@ def save_to_db(text, url):
     try:
         with open(DB_PATH, 'r') as f:
             data = json.load(f)
+        if not isinstance(data, list):
+            data = []
     except FileNotFoundError:
         data = []
 
@@ -103,8 +105,8 @@ def get_context(question,text,chunk_size=500,chunk_overlap=100):
     qdrant = Qdrant.from_documents(
         documents=documents,
         embedding=embeddings,
-        path=os.environ.get("QDRANT_PATH", "./tmp/local_qdrant"),
-        collection_name="telegram_data",
+        path=":memory:",
+        collection_name="session_data",
     )
     retriever = qdrant.as_retriever(search_kwargs={"k": 3})
     
