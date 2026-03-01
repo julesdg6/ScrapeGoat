@@ -537,22 +537,20 @@ with gr.Blocks() as iface_chat:
         "- **Transcribe speech or analyse music** if you upload an audio file\n"
         "- **Answer directly** otherwise"
     )
+    text_input = gr.Textbox(
+        label="Your message",
+        placeholder="Ask a question, paste a URL, or describe what you need…",
+        lines=3,
+    )
     with gr.Row():
-        with gr.Column(scale=2):
-            text_input = gr.Textbox(
-                label="Your message",
-                placeholder="Ask a question, paste a URL, or describe what you need…",
-                lines=3,
-            )
-        with gr.Column(scale=1):
-            image_input = gr.Image(
-                label="Image (optional)",
-                type="filepath",
-            )
-            audio_input = gr.Audio(
-                label="Audio (optional)",
-                type="filepath",
-            )
+        image_input = gr.Image(
+            label="Image (optional)",
+            type="filepath",
+        )
+        audio_input = gr.Audio(
+            label="Audio (optional)",
+            type="filepath",
+        )
     submit_btn = gr.Button("Submit")
     chat_output = gr.Textbox(label="Response", lines=12, interactive=False)
     submit_btn.click(
