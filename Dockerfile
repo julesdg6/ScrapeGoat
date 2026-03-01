@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure pip build tools are up to date (required by openai-whisper's pyproject.toml build)
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+# --no-build-isolation reuses these globally so isolated per-package envs also benefit
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel setuptools-scm
 
 # Copy and install Python dependencies first (layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
 
 # Copy application files
 COPY scrapeGPT_gradio_app.py .
