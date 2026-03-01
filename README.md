@@ -6,8 +6,8 @@ ScrapeGoat is a Gradio web app (and optional Telegram bot) that scrapes websites
 > **History:** This project was originally developed as [scrapeGPT](https://github.com/julesdg6/scrapeGPT) and has since been renamed and split into its own repository.
 
 > **Note:** There are two entry points:
-> - `scrapeGoat_gradio_app.py` — Gradio web UI (recommended, used by Docker)
-> - `scrapeGoat.py` — Telegram bot (includes a commented CLI `main()` at the bottom)
+> - `ScrapeGoat_gradio_app.py` — Gradio web UI (recommended, used by Docker)
+> - `ScrapeGoat.py` — Telegram bot (includes a commented CLI `main()` at the bottom)
 
 ## Features
 
@@ -68,7 +68,7 @@ Key variables in `.env`:
 ```bash
 docker compose up -d
 ```
-This starts both **scrapeGoat** and **Ollama** containers.
+This starts both **ScrapeGoat** and **Ollama** containers.
 
 #### Optional: Enable GPU speech transcription with WhisperLive
 
@@ -184,12 +184,12 @@ ollama pull qwen:0.5b
 ```
 4. Run the Gradio app:
 ```bash
-python scrapeGoat_gradio_app.py
+python ScrapeGoat_gradio_app.py
 ```
 Or the Telegram bot (set `TELEGRAM_BOT_TOKEN` env var first):
 ```bash
 export TELEGRAM_BOT_TOKEN=your_token_here
-python scrapeGoat.py
+python ScrapeGoat.py
 ```
 
 ---
@@ -208,7 +208,7 @@ python scrapeGoat.py
 
 ### Telegram Bot
 1. Set up your bot via [BotFather](https://core.telegram.org/bots#botfather) and copy the token into `TELEGRAM_BOT_TOKEN`.
-2. Run `python scrapeGoat.py`.
+2. Run `python ScrapeGoat.py`.
 3. Send `/start` in Telegram, provide a URL, then ask questions.
 
 ---
