@@ -1,5 +1,8 @@
 import gradio as gr
+import atexit
 import os
+import subprocess
+import sys
 import time
 import base64
 import logging
@@ -32,10 +35,14 @@ SEARXNG_HOST = os.environ.get("SEARXNG_HOST", "")
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant that answers questions based only on the provided context."
 
 # Optional: Automatic1111 (stable-diffusion-webui) API for image generation.
-# Configure A1111_HOST to enable the Image Generation tab.
+# Configure A1111_HOST (and optionally A1111_PORT) to enable image generation.
 A1111_HOST = os.environ.get("A1111_HOST", "")
 A1111_PORT = os.environ.get("A1111_PORT", "7860")
 A1111_MODEL = os.environ.get("A1111_MODEL", "")
+
+# Optional: Telegram bot support (ScrapeGoat.py). When a token is provided we
+# can automatically start the bot alongside the Gradio UI.
+TELEGRAM_BOT_AUTOSTART = os.environ.get("TELEGRAM_BOT_AUTOSTART", "1")
 
 # Path to shared configuration file (persistent across restarts)
 CONFIG_PATH = os.environ.get("CONFIG_PATH", "config.json")
@@ -57,6 +64,60 @@ def _get_int_env(name: str, default: int) -> int:
     except ValueError:
         logging.warning(f"Invalid {name}={raw!r}; using default {default}.")
         return default
+
+
+def _running_in_container() -> bool:
+    return os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
+
+
+def _is_truthy(value: str) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+_telegram_proc = None
+
+
+def _maybe_start_telegram_bot() -> None:
+    """Start ScrapeGoat.py as a background subprocess when configured."""
+    global _telegram_proc
+    if _telegram_proc is not None:
+        return
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        return
+    if not _is_truthy(TELEGRAM_BOT_AUTOSTART):
+        print("Telegram bot autostart disabled via TELEGRAM_BOT_AUTOSTART.")
+        return
+
+    try:
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        _telegram_proc = subprocess.Popen(
+            [sys.executable, os.path.join(app_dir, "ScrapeGoat.py")],
+            cwd=app_dir,
+        )
+        print(f"Telegram bot started (pid={_telegram_proc.pid}).")
+    except Exception as exc:
+        print(f"Failed to start Telegram bot subprocess: {exc}")
+        logging.exception("Failed to start Telegram bot subprocess.")
+        _telegram_proc = None
+
+
+def _stop_telegram_bot() -> None:
+    global _telegram_proc
+    proc = _telegram_proc
+    _telegram_proc = None
+    if proc is None:
+        return
+    if proc.poll() is not None:
+        return
+    try:
+        proc.terminate()
+    except Exception:
+        return
+
+
+atexit.register(_stop_telegram_bot)
 
 
 def _get_a1111_base_url() -> str:
@@ -337,10 +398,12 @@ def analyze_website(start_url):
 
 def ask_questions(question_text):
     global shared_result
-    if shared_result is None:
-        return "No result available yet."
-    else:
-        return _answer_from_text(question_text, shared_result)
+    if not shared_result or not str(shared_result).strip():
+        return (
+            "No scraped text is available yet. "
+            "Go to the **URL Input** tab, enter a URL, click **Analyze**, then try again."
+        )
+    return _answer_from_text(question_text, shared_result)
 
 def save_settings(system_prompt):
     system_prompt = system_prompt.strip()
@@ -377,14 +440,30 @@ def _answer_from_text(question, scraped_text):
 
     Shared by both ``ask_questions`` and ``handle_flexible_request``.
     """
+    scraped_text = (scraped_text or "").strip()
+    if not scraped_text:
+        return (
+            "I don't have any scraped page text to answer from. "
+            "Try analyzing the site again, or try a different URL."
+        )
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     paper_chunks = text_splitter.create_documents([scraped_text])
-    qdrant = Qdrant.from_documents(
-        documents=paper_chunks,
-        embedding=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2"),
-        path="./tmp/local_qdrant",
-        collection_name="data",
-    )
+    if not paper_chunks:
+        return (
+            "I couldn't extract any usable text from the scraped content. "
+            "Try analyzing again, or choose a different URL."
+        )
+    try:
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        qdrant = Qdrant.from_documents(
+            documents=paper_chunks,
+            embedding=embeddings,
+            path="./tmp/local_qdrant",
+            collection_name="data",
+        )
+    except Exception as exc:
+        logging.exception("Failed to build retrieval index from scraped content")
+        return f"Could not build the retrieval index from scraped content: {exc}"
     retriever = qdrant.as_retriever()
     template = f"""{current_settings["system_prompt"]}
 
@@ -733,4 +812,20 @@ tabbed_interface = gr.TabbedInterface(
 )
 
 # Launch the combined interface
-tabbed_interface.launch(server_name="0.0.0.0", server_port=int(os.environ.get("GRADIO_PORT", 7860)))
+_maybe_start_telegram_bot()
+
+if _running_in_container():
+    # In Docker/Unraid deployments the container port is expected to remain 7860.
+    # Change the *host* port via Docker/Unraid port mappings instead.
+    server_port = _get_int_env("GRADIO_SERVER_PORT", 7860)
+    if server_port == 7860:
+        gradio_port = os.environ.get("GRADIO_PORT", "").strip()
+        if gradio_port and gradio_port != "7860":
+            logging.warning(
+                f"Ignoring GRADIO_PORT={gradio_port!r} inside container; binding to 7860. "
+                "Change the host port via Docker/Unraid port mapping instead."
+            )
+else:
+    server_port = _get_int_env("GRADIO_PORT", 7860)
+
+tabbed_interface.launch(server_name="0.0.0.0", server_port=server_port)

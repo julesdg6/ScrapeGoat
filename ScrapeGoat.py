@@ -1,3 +1,4 @@
+import asyncio
 import requests, json, os, re, ollama, time, logging
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -357,18 +358,49 @@ if __name__ == '__main__':
             await message.reply("Sorry, you are not authorized to use this bot.")
             return
         chat_id = message.chat.id
+        raw_text = (message.text or "").strip()
         state = state_storage.get(chat_id, {}).get('state')
+
+        looks_like_url = raw_text.startswith("http://") or raw_text.startswith("https://")
+        if state is None and not looks_like_url:
+            await message.reply("Send /start, then provide a website URL (starting with http:// or https://).")
+            return
+        if state is None and looks_like_url:
+            # Backward-compatible convenience: accept a URL even if the user didn't send /start.
+            state_storage[chat_id] = {'state': 'waiting_for_link'}
+            state = 'waiting_for_link'
         
         if state == 'waiting_for_link':
-            website_text = analyze_website(message.text)
+            await message.reply("Link accepted. Analyzing… this may take a minute.")
+            loop = asyncio.get_running_loop()
+            try:
+                website_text = await loop.run_in_executor(None, analyze_website, raw_text)
+            except Exception as exc:
+                logging.exception("Website analysis failed")
+                await message.reply(f"Analysis failed: {exc}")
+                return
             state_storage[chat_id]['website_text'] = website_text
             state_storage[chat_id]['state'] = 'ready_to_chat'
-            await message.reply('Link accepted and analyzed. You can now ask questions.')
+            await message.reply('Analysis complete. You can now ask questions (or send a new URL to re-analyze).')
             
         elif state == 'ready_to_chat':
-            context = get_context(message.text, state_storage[chat_id]['website_text'])
-            response = generate_answer_local(message.text, context)
+            # Allow users to reset analysis by sending a new URL.
+            if looks_like_url:
+                state_storage[chat_id]['state'] = 'waiting_for_link'
+                await process_message(message)
+                return
+            loop = asyncio.get_running_loop()
+            try:
+                context = await loop.run_in_executor(None, get_context, raw_text, state_storage[chat_id]['website_text'])
+                response = await loop.run_in_executor(None, generate_answer_local, raw_text, context)
+            except Exception as exc:
+                logging.exception("Failed to answer question")
+                await message.reply(f"Error generating answer: {exc}")
+                return
             await message.reply(response)
+        else:
+            state_storage[chat_id] = {'state': 'waiting_for_link'}
+            await message.reply("Please provide a website URL to analyze.")
 
     executor.start_polling(dp, skip_updates=True)
 

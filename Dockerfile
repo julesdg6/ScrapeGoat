@@ -24,6 +24,7 @@ COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    ffmpeg \
     libsndfile1 \
     && pip install --no-cache-dir -r requirements.txt \
     && apt-get purge -y --auto-remove gcc g++ \
@@ -42,6 +43,7 @@ EXPOSE 7860
 ENV OLLAMA_HOST=http://ollama:11434 \
     OLLAMA_MODEL=qwen:0.5b \
     GRADIO_PORT=7860 \
+    TELEGRAM_BOT_AUTOSTART=1 \
     DB_PATH=/data/db.json \
     CONFIG_PATH=/data/config.json \
     WHISPERLIVE_HOST= \

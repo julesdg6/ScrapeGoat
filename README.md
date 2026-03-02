@@ -76,13 +76,14 @@ Key variables in `.env`:
 | `OLLAMA_HOST` | `http://ollama:11434` | URL of the Ollama API |
 | `OLLAMA_MODEL` | `qwen:0.5b` | Ollama model name |
 | `OLLAMA_VISION_MODEL` | `llava` | Ollama vision model for image analysis (pull first) |
-| `GRADIO_PORT` | `7860` | Host port for the Gradio web UI (use a different port than `A1111_PORT` when running both locally) |
-| `TELEGRAM_BOT_TOKEN` | *(empty)* | Telegram token (bot mode only) |
+| `GRADIO_PORT` | `7860` | Port for the Gradio web UI (host-mapped port in Docker; server port when running locally) |
+| `TELEGRAM_BOT_TOKEN` | *(empty)* | Telegram token (optional; enables the Telegram bot) |
+| `TELEGRAM_BOT_AUTOSTART` | `1` | Auto-start Telegram bot when token is set (set to `0` to disable) |
 | `WHISPERLIVE_HOST` | *(empty)* | URL of the WhisperLive service for speech transcription (optional) |
 | `SEARXNG_HOST` | `http://searxng:8080` | URL of the SearXNG search backend (recommended; leave empty to use legacy proxy scraping) |
 | `SEARXNG_PORT` | `8080` | Host port for the bundled SearXNG web UI |
-| `A1111_HOST` | *(empty)* | Automatic1111 base URL (host) for image generation (enables Image Generation tab) |
-| `A1111_PORT` | `7861` | Automatic1111 API/web UI port (change if it conflicts with `GRADIO_PORT`) |
+| `A1111_HOST` | *(empty)* | Automatic1111 base URL for image generation |
+| `A1111_PORT` | `7860` | Automatic1111 port reachable from ScrapeGoat (typically `7860` inside a Docker network) |
 | `A1111_MODEL` | *(empty)* | Optional checkpoint name (leave empty to use currently loaded model) |
 | `A1111_WIDTH` | `256` | Generated image width |
 | `A1111_HEIGHT` | `256` | Generated image height |
@@ -151,7 +152,7 @@ Then set:
 ```bash
 # In your .env:
 A1111_HOST=http://a1111
-A1111_PORT=7861
+A1111_PORT=7860
 # Optional:
 A1111_MODEL=
 A1111_WIDTH=256
@@ -320,7 +321,7 @@ python3 ScrapeGoat.py
 
 ### Telegram Bot
 1. Set up your bot via [BotFather](https://core.telegram.org/bots#botfather) and copy the token into `TELEGRAM_BOT_TOKEN`.
-2. Run `python3 ScrapeGoat.py`.
+2. If you run ScrapeGoat via Docker/Unraid, set `TELEGRAM_BOT_TOKEN` and restart the container (the bot auto-starts by default). For local installs, run `python3 ScrapeGoat.py`.
 3. Send `/start` in Telegram, provide a URL, then ask questions.
 
 ---

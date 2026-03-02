@@ -13,8 +13,9 @@ services:
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen:0.5b}
-      # TELEGRAM_BOT_TOKEN is only needed if you override CMD to run ScrapeGoat.py (Telegram bot)
+      # Optional: when TELEGRAM_BOT_TOKEN is set, ScrapeGoat can also start the Telegram bot.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_BOT_AUTOSTART=${TELEGRAM_BOT_AUTOSTART:-1}
       # Optional: set to http://whisperlive:9090 to enable speech transcription via WhisperLive.
       # Leave empty (default) to disable speech transcription or to use a locally-installed
       # openai-whisper package.
